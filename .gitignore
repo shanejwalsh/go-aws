@@ -5,7 +5,8 @@
 *.so
 *.dylib
 
-*.DS_Store
+#.DS_Store
+.env
 
 # Test binary, built with `go test -c`
 *.test
@@ -23,3 +24,4 @@ cdk.out
 
 lambda/bootstrap
 lambda/function.zip
+.DS_Store
