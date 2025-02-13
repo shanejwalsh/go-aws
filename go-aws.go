@@ -2,12 +2,18 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
+)
+
+const (
+	// allowedOrigins = "*"
+	REGISTER_PATH = "register"
+	LOGIN_PATH    = "login"
 )
 
 type GoAwsStackProps struct {
@@ -22,6 +28,8 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoAwsStackProps
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
 	// create the db table here
+
+	// table := awsapigateway.NewGatewayResponse(stack)
 
 	table := awsdynamodb.NewTable(stack, jsii.String("myUserTable"), &awsdynamodb.TableProps{
 		TableName: jsii.String("users"),
@@ -38,6 +46,24 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoAwsStackProps
 	})
 
 	table.GrantReadWriteData(lambda)
+
+	api := awsapigateway.NewRestApi(stack, jsii.String("apiGateway"), &awsapigateway.RestApiProps{
+		DefaultCorsPreflightOptions: &awsapigateway.CorsOptions{
+			AllowOrigins: awsapigateway.Cors_ALL_ORIGINS(),
+			AllowHeaders: awsapigateway.Cors_DEFAULT_HEADERS(),
+			AllowMethods: awsapigateway.Cors_ALL_METHODS(),
+		},
+		DeployOptions: &awsapigateway.StageOptions{
+			// LoggingLevel: awsapigateway.MethodLoggingLevel_INFO,
+		},
+	})
+
+	integration := awsapigateway.NewLambdaIntegration(lambda, nil)
+	registerRoute := api.Root().AddResource(jsii.String(REGISTER_PATH), nil)
+	registerRoute.AddMethod(jsii.String("POST"), integration, nil)
+
+	loginRoute := api.Root().AddResource(jsii.String(LOGIN_PATH), nil)
+	loginRoute.AddMethod(jsii.String("POST"), integration, nil)
 
 	return stack
 }
