@@ -1,11 +1,21 @@
 package types
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const (
+	SECRET = "MY_SECRET"
+)
+
+type Req events.APIGatewayProxyRequest
+type Res events.APIGatewayProxyResponse
+type Next func(Req) (Res, error)
 
 type RegisterUser struct {
 	Username string `json:"username"`
@@ -43,12 +53,19 @@ func CreateToken(user User) string {
 
 	validUntil := now.Add(time.Minute * 30).Unix()
 
-	claims := jwt.MapClaims{
+	claims := &jwt.MapClaims{
 		"user":    user.Username,
 		"expires": validUntil,
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims, nil)
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 
-	secret := "clariewalshismywife"
+	tokenString, err := token.SignedString([]byte(SECRET))
+
+	if err != nil {
+		return fmt.Sprintf("there was an error %s", err)
+	}
+
+	return tokenString
+
 }

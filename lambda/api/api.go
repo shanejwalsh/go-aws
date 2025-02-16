@@ -6,8 +6,6 @@ import (
 	"lambda-func/database"
 	"lambda-func/types"
 	"net/http"
-
-	"github.com/aws/aws-lambda-go/events"
 )
 
 type ApiHandler struct {
@@ -20,21 +18,21 @@ func NewApiHandler(dbStore database.UserStore) ApiHandler {
 	}
 }
 
-func (api ApiHandler) RegisterUser(event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (api ApiHandler) RegisterUser(event types.Req) (types.Res, error) {
 
 	var registerUserEvent types.RegisterUser
 
 	err := json.Unmarshal([]byte(event.Body), &registerUserEvent)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "bad request",
 			StatusCode: http.StatusBadRequest,
 		}, err
 	}
 
 	if (registerUserEvent.Username) == "" || registerUserEvent.Password == "" {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "bad request",
 			StatusCode: http.StatusBadRequest,
 		}, err
@@ -43,14 +41,14 @@ func (api ApiHandler) RegisterUser(event events.APIGatewayProxyRequest) (events.
 	userExists, err := api.dbStore.DoesUserExist(registerUserEvent.Username)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "bad request",
 			StatusCode: http.StatusInternalServerError,
 		}, err
 	}
 
 	if userExists {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "bad request - user already exists",
 			StatusCode: http.StatusBadRequest,
 		}, err
@@ -59,7 +57,7 @@ func (api ApiHandler) RegisterUser(event events.APIGatewayProxyRequest) (events.
 	user, err := types.NewUser(registerUserEvent)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "Internal server error",
 			StatusCode: http.StatusInternalServerError,
 		}, err
@@ -68,18 +66,18 @@ func (api ApiHandler) RegisterUser(event events.APIGatewayProxyRequest) (events.
 	err = api.dbStore.InsertUser(user)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			StatusCode: http.StatusInternalServerError,
 		}, fmt.Errorf("error inserting user %w", err)
 	}
 
-	return events.APIGatewayProxyResponse{
+	return types.Res{
 		Body:       event.Body,
 		StatusCode: http.StatusCreated,
 	}, nil
 }
 
-func (api ApiHandler) LoginUser(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (api ApiHandler) LoginUser(req types.Req) (types.Res, error) {
 	type LoginRequest struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -90,7 +88,7 @@ func (api ApiHandler) LoginUser(req events.APIGatewayProxyRequest) (events.APIGa
 	err := json.Unmarshal([]byte(req.Body), &loginRequest)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "bad request",
 			StatusCode: http.StatusBadRequest,
 		}, err
@@ -99,22 +97,24 @@ func (api ApiHandler) LoginUser(req events.APIGatewayProxyRequest) (events.APIGa
 	user, err := api.dbStore.GetUser(loginRequest.Username)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "user with name " + loginRequest.Username + " not found",
 			StatusCode: http.StatusNotFound,
 		}, err
 	}
 
 	if !types.ValidatePassword(user.PasswordHash, loginRequest.Password) {
-		return events.APIGatewayProxyResponse{
+		return types.Res{
 			Body:       "incorect password",
 			StatusCode: http.StatusBadRequest,
 		}, err
 
 	}
 
-	return events.APIGatewayProxyResponse{
-		Body:       "Logged in",
+	accessToken := types.CreateToken(user)
+
+	return types.Res{
+		Body:       fmt.Sprintf(`"token" : "%s"`, accessToken),
 		StatusCode: http.StatusOK,
 	}, nil
 

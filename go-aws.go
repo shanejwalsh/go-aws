@@ -12,8 +12,9 @@ import (
 
 const (
 	// allowedOrigins = "*"
-	REGISTER_PATH = "register"
-	LOGIN_PATH    = "login"
+	REGISTER_PATH  = "register"
+	LOGIN_PATH     = "login"
+	PROTECTED_PATH = "protected"
 )
 
 type GoAwsStackProps struct {
@@ -64,6 +65,9 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoAwsStackProps
 
 	loginRoute := api.Root().AddResource(jsii.String(LOGIN_PATH), nil)
 	loginRoute.AddMethod(jsii.String("POST"), integration, nil)
+
+	protectedRoute := api.Root().AddResource(jsii.String(PROTECTED_PATH), nil)
+	protectedRoute.AddMethod(jsii.String("GET"), integration, nil)
 
 	return stack
 }
